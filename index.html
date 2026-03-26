@@ -194,6 +194,12 @@ header .sub{color:var(--t3);font-size:12px;letter-spacing:2px;margin-top:2px}
 .res-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:10px}
 .res-title{font-size:18px;font-weight:900;background:linear-gradient(135deg,#fbbf24,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .tags{display:flex;gap:5px;flex-wrap:wrap}
+
+/* 金蝶页 */
+.kd-panel{display:none;animation:fadeUp .4s ease}.kd-panel.vis{display:block}
+.upload-box{border:2px dashed var(--b1);border-radius:var(--rs);padding:24px;text-align:center;cursor:pointer;transition:all .3s;background:var(--s2)}
+.upload-box:hover{border-color:var(--kd);background:rgba(220,38,38,.04)}
+.upload-box.loaded{border-style:solid;border-color:var(--green);background:rgba(16,185,129,.04)}
 </style>
 </head>
 <body>
@@ -223,6 +229,7 @@ header .sub{color:var(--t3);font-size:12px;letter-spacing:2px;margin-top:2px}
     <button class="nav-btn" data-page="overview" onclick="switchPage('overview',this)">🏭 企业数据</button>
     <button class="nav-btn" data-page="preview" onclick="switchPage('preview',this)">🔍 数据预览</button>
     <button class="nav-btn" data-page="summary" onclick="switchPage('summary',this)">📋 台账汇总</button>
+    <button class="nav-btn" data-page="kingdee" onclick="switchPage('kingdee',this)">🔴 金蝶真实数据</button>
   </div>
 
   <!-- ====== 每日采集页 ====== -->
@@ -282,6 +289,96 @@ header .sub{color:var(--t3);font-size:12px;letter-spacing:2px;margin-top:2px}
       <div class="acts">
         <button class="btn bam" onclick="doExport()">📥 导出台账Excel</button>
         <button class="btn bg" onclick="doExportAll()">📦 导出全部（汇总+原始）</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== 金蝶真实数据页 ====== -->
+  <div class="page" id="pg-kingdee">
+    <!-- 步骤条 -->
+    <div class="steps" id="kd-steps">
+      <div class="stp on" onclick="kdGoStep(1)"><span class="sn">1</span><span class="sl">数据采集</span></div>
+      <div class="stp" onclick="kdGoStep(2)"><span class="sn">2</span><span class="sl">数据解析</span></div>
+      <div class="stp" onclick="kdGoStep(3)"><span class="sn">3</span><span class="sl">台账汇总</span></div>
+      <div class="stp" onclick="kdGoStep(4)"><span class="sn">4</span><span class="sl">报送导出</span></div>
+    </div>
+
+    <!-- Step 1: 数据采集 -->
+    <div class="kd-panel vis" id="kd-p1">
+      <div class="card">
+        <div class="card-t"><div class="ic" style="background:rgba(220,38,38,.12)">🔴</div>金蝶云星空 - ERP数据采集</div>
+        <div style="background:var(--s2);border:1px solid var(--b1);border-radius:var(--rs);padding:16px;margin-bottom:16px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+            <div style="width:36px;height:36px;background:rgba(220,38,38,.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:900;color:#f87171">K3</div>
+            <div><div style="font-weight:700">金蝶云星空 · 环球集团</div><div style="font-size:11px;color:var(--t3)">Kingdee Cloud Cosmic · pretraining环境</div></div>
+            <div style="margin-left:auto"><span class="live-dot"></span> <span style="font-size:12px;color:var(--green)">已连接</span></div>
+          </div>
+          <div style="font-size:11px;color:var(--t3)">报告期：2026年1月-3月 ｜ 数据来源：采购订单/销售订单/即时库存</div>
+        </div>
+        <p style="color:var(--t2);font-size:13px;margin-bottom:16px">请上传从金蝶系统导出的3个Excel文件：</p>
+        <div class="co-grid">
+          <div class="upload-box" id="kd-box-purchase" onclick="document.getElementById('kd-file-purchase').click()">
+            <div style="font-size:28px;margin-bottom:8px">📦</div>
+            <div style="font-weight:700;margin-bottom:4px">采购订单</div>
+            <div style="font-size:11px;color:var(--t3)" id="kd-status-purchase">点击上传</div>
+            <input type="file" id="kd-file-purchase" accept=".xlsx,.xls" style="display:none" onchange="kdLoadFile(this,'purchase')">
+          </div>
+          <div class="upload-box" id="kd-box-sales" onclick="document.getElementById('kd-file-sales').click()">
+            <div style="font-size:28px;margin-bottom:8px">💰</div>
+            <div style="font-weight:700;margin-bottom:4px">销售订单</div>
+            <div style="font-size:11px;color:var(--t3)" id="kd-status-sales">点击上传</div>
+            <input type="file" id="kd-file-sales" accept=".xlsx,.xls" style="display:none" onchange="kdLoadFile(this,'sales')">
+          </div>
+          <div class="upload-box" id="kd-box-inventory" onclick="document.getElementById('kd-file-inventory').click()">
+            <div style="font-size:28px;margin-bottom:8px">🏭</div>
+            <div style="font-weight:700;margin-bottom:4px">即时库存</div>
+            <div style="font-size:11px;color:var(--t3)" id="kd-status-inventory">点击上传</div>
+            <input type="file" id="kd-file-inventory" accept=".xlsx,.xls" style="display:none" onchange="kdLoadFile(this,'inventory')">
+          </div>
+        </div>
+      </div>
+      <div class="acts"><button class="btn bp" id="kd-btn-next1" disabled onclick="kdGoStep(2)">下一步：数据解析 →</button></div>
+    </div>
+
+    <!-- Step 2: 数据解析 -->
+    <div class="kd-panel" id="kd-p2">
+      <div class="st-row" id="kd-parse-stats"></div>
+      <div class="card">
+        <div class="card-t"><div class="ic" style="background:rgba(220,38,38,.12)">🔍</div>数据解析与字段映射</div>
+        <div id="kd-parse-log" style="background:var(--s2);border:1px solid var(--b1);border-radius:var(--rs);padding:16px;font-family:monospace;font-size:12px;max-height:300px;overflow-y:auto;margin-bottom:16px"></div>
+        <div class="tabs" id="kd-tabs"></div>
+        <div id="kd-pv-area"></div>
+      </div>
+      <div class="acts">
+        <button class="btn bo" onclick="kdGoStep(1)">← 返回</button>
+        <button class="btn bp" onclick="kdGoStep(3)">开始汇总 →</button>
+      </div>
+    </div>
+
+    <!-- Step 3: 台账汇总 -->
+    <div class="kd-panel" id="kd-p3">
+      <div class="card" style="text-align:center;padding:50px 20px">
+        <div style="font-size:16px;font-weight:800;margin-bottom:20px">⚙️ 按统计局台账标准汇总中...</div>
+        <div class="agg-steps" id="kd-agg-steps"></div>
+      </div>
+    </div>
+
+    <!-- Step 4: 报送导出 -->
+    <div class="kd-panel" id="kd-p4">
+      <div class="card" style="padding:24px">
+        <div class="res-head">
+          <div>
+            <div class="res-title">📋 统计局台账汇总表（金蝶真实数据）</div>
+            <p style="color:var(--t3);font-size:12px;margin-top:3px">数据来源：金蝶云星空·环球集团 ｜ 报告期：2026年1月-3月 ｜ 金额单位：元</p>
+          </div>
+          <div class="tags"><span class="tg tg-k">● 金蝶云星空</span><span class="tg" style="background:rgba(245,158,11,.12);color:#fbbf24">● 真实数据</span></div>
+        </div>
+        <div class="tw" style="max-height:520px"><table class="rt" id="kd-rt"></table></div>
+      </div>
+      <div class="acts">
+        <button class="btn bo" onclick="kdGoStep(2)">← 返回预览</button>
+        <button class="btn bam" onclick="kdExport()">📥 导出台账Excel</button>
+        <button class="btn bg" onclick="kdExportAll()">📦 导出全部（汇总+原始数据）</button>
       </div>
     </div>
   </div>
@@ -716,6 +813,220 @@ function fw(n){return(n/1e4).toLocaleString('zh-CN',{minimumFractionDigits:1,max
 function fw2(n){return(n/1e4).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function r2(n){return Math.round(n*100)/100}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000)}
+
+// ============================================================
+// 金蝶真实数据页
+// ============================================================
+const KD={purchase:null,sales:null,inventory:null,purchaseRaw:null,salesRaw:null,inventoryRaw:null,summary:null};
+let kdStep=1;
+
+function kdGoStep(n){
+  if(n===2&&!KD.purchase&&!KD.sales&&!KD.inventory){toast('请至少上传一个文件');return}
+  if(n===3){kdRunAgg();return}
+  if(n===4&&!KD.summary)return;
+  kdStep=n;
+  document.querySelectorAll('.kd-panel').forEach(p=>p.classList.remove('vis'));
+  document.getElementById('kd-p'+n).classList.add('vis');
+  document.querySelectorAll('#kd-steps .stp').forEach((s,i)=>{
+    s.classList.remove('on','ok');if(i+1<n)s.classList.add('ok');if(i+1===n)s.classList.add('on');
+  });
+  if(n===2)kdRenderParse();
+  if(n===4)kdRenderResult();
+}
+
+function kdLoadFile(input,type){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    const data=new Uint8Array(e.target.result);
+    const wb=XLSX.read(data,{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+
+    // 找到"序号"所在行作为header
+    let hIdx=0;
+    for(let i=0;i<Math.min(10,raw.length);i++){
+      if(String(raw[i][0]).trim()==='序号'){hIdx=i;break}
+    }
+    const headers=raw[hIdx];
+    const rows=raw.slice(hIdx+1).filter(r=>r[0]&&r[0]!=='').map(r=>{
+      const obj={};headers.forEach((h,ci)=>{if(h)obj[h]=r[ci]});return obj;
+    });
+
+    if(type==='purchase'){KD.purchase=rows;KD.purchaseRaw=raw}
+    if(type==='sales'){KD.sales=rows;KD.salesRaw=raw}
+    if(type==='inventory'){KD.inventory=rows;KD.inventoryRaw=raw}
+
+    const box=document.getElementById('kd-box-'+type);
+    box.classList.add('loaded');
+    const status=document.getElementById('kd-status-'+type);
+    status.innerHTML=`<span style="color:var(--green)">✓ ${file.name}<br>${rows.length}条记录</span>`;
+
+    const loaded=[KD.purchase,KD.sales,KD.inventory].filter(x=>x).length;
+    document.getElementById('kd-btn-next1').disabled=loaded===0;
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function kdRenderParse(){
+  const log=document.getElementById('kd-parse-log');
+  log.innerHTML='';
+  function addL(m,c){log.innerHTML+=`<div style="color:${c||'var(--t2)'};margin:2px 0">${m}</div>`}
+
+  addL('🔴 <b>金蝶云星空数据解析</b>','#f87171');
+  addL('─'.repeat(45),'var(--b1)');
+
+  let totalRec=0,totalProducts=new Set(),totalPAmt=0,totalSAmt=0;
+
+  if(KD.purchase){
+    addL(`📦 <b>采购订单</b>: ${KD.purchase.length}条记录`,'var(--t1)');
+    addL(`   字段映射: 物料编码→产品代码, 物料名称→产品名称, 数量→采购数量, 价税合计→采购金额`,'var(--t3)');
+    const sample=KD.purchase[0];
+    addL(`   示例: ${sample['物料编码']||''} ${sample['物料名称']||''} 数量:${sample['数量']||0} 金额:${sample['价税合计']||sample['金额']||0}`,'var(--t3)');
+    totalRec+=KD.purchase.length;
+    KD.purchase.forEach(r=>{totalProducts.add(r['物料编码']);totalPAmt+=parseFloat(r['价税合计']||r['金额']||0)||0});
+  }
+  if(KD.sales){
+    addL(`💰 <b>销售订单</b>: ${KD.sales.length}条记录`,'var(--t1)');
+    addL(`   字段映射: 物料编码→产品代码, 物料名称→产品名称, 数量→销售数量, 价税合计→销售金额`,'var(--t3)');
+    totalRec+=KD.sales.length;
+    KD.sales.forEach(r=>{totalProducts.add(r['物料编码']);totalSAmt+=parseFloat(r['价税合计']||r['金额']||0)||0});
+  }
+  if(KD.inventory){
+    addL(`🏭 <b>即时库存</b>: ${KD.inventory.length}条记录`,'var(--t1)');
+    addL(`   字段映射: 物料→产品代码, 物料.名称→产品名称, 可用量→库存数量`,'var(--t3)');
+    totalRec+=KD.inventory.length;
+    KD.inventory.forEach(r=>totalProducts.add(r['物料']));
+  }
+  addL('─'.repeat(45),'var(--b1)');
+  addL(`✅ 解析完成 | ${totalRec}条记录 | ${totalProducts.size}个物料品类`,'var(--green)');
+
+  document.getElementById('kd-parse-stats').innerHTML=`
+    <div class="st c4"><div class="st-l">数据来源</div><div class="st-v c4">金蝶</div></div>
+    <div class="st c5"><div class="st-l">物料品类</div><div class="st-v c5">${totalProducts.size}种</div></div>
+    <div class="st c2"><div class="st-l">总记录数</div><div class="st-v c2">${totalRec}</div></div>
+    <div class="st c3"><div class="st-l">采购总额</div><div class="st-v c3">¥${(totalPAmt).toLocaleString('zh-CN',{maximumFractionDigits:0})}</div></div>
+    <div class="st c4"><div class="st-l">销售总额</div><div class="st-v c4">¥${(totalSAmt).toLocaleString('zh-CN',{maximumFractionDigits:0})}</div></div>
+  `;
+
+  // 数据预览tabs
+  const tabs=document.getElementById('kd-tabs'),area=document.getElementById('kd-pv-area');
+  tabs.innerHTML='';area.innerHTML='';
+  let first=true;
+  const sheets=[];
+  if(KD.purchase)sheets.push({id:'kd-p',label:'采购订单',keys:['序号','物料编码','物料名称','订货供应商','订单日期','数量','计量单位','价税合计'],data:KD.purchase});
+  if(KD.sales)sheets.push({id:'kd-s',label:'销售订单',keys:['序号','物料编码','物料名称','订货客户','单据编号','数量','计量单位','价税合计'],data:KD.sales});
+  if(KD.inventory)sheets.push({id:'kd-i',label:'即时库存',keys:['序号','物料','物料.名称','仓库','可用量','计量单位','库存状态'],data:KD.inventory});
+
+  sheets.forEach(sh=>{
+    const t=document.createElement('button');t.className='tab'+(first?' on':'');t.textContent=sh.label;
+    t.onclick=()=>{tabs.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));t.classList.add('on');area.querySelectorAll('.tw').forEach(x=>x.style.display='none');document.getElementById('tw-'+sh.id).style.display='block'};
+    tabs.appendChild(t);
+
+    let h='<table><thead><tr>';sh.keys.forEach(k=>{h+=`<th>${k}</th>`});h+='</tr></thead><tbody>';
+    sh.data.forEach(r=>{
+      h+='<tr>';
+      sh.keys.forEach(k=>{
+        const v=r[k]||'';const isN=typeof v==='number';
+        h+=`<td class="${isN?'nm':''}">${isN?fn(v):v}</td>`;
+      });
+      h+='</tr>';
+    });
+    h+='</tbody></table>';
+    const w=document.createElement('div');w.className='tw';w.id='tw-'+sh.id;w.style.display=first?'block':'none';w.innerHTML=h;area.appendChild(w);first=false;
+  });
+}
+
+function kdRunAgg(){
+  kdStep=3;
+  document.querySelectorAll('.kd-panel').forEach(p=>p.classList.remove('vis'));
+  document.getElementById('kd-p3').classList.add('vis');
+  document.querySelectorAll('#kd-steps .stp').forEach((s,i)=>{s.classList.remove('on','ok');if(i<2)s.classList.add('ok');if(i===2)s.classList.add('on')});
+
+  const steps=['读取金蝶采购订单数据...','解析采购字段(物料编码/名称/数量/价税合计)...','读取金蝶销售订单数据...','解析销售字段(物料编码/客户/数量/金额)...','读取金蝶即时库存数据...','解析库存字段(物料/可用量/仓库)...','按物料代码归集汇总...','金额单位标准化...','生成统计局台账标准格式 ✓'];
+  document.getElementById('kd-agg-steps').innerHTML=steps.map((s,i)=>`<div class="agg-item" id="kdi${i}"><div class="agg-dot"></div><div class="agg-text">${s}</div></div>`).join('');
+  let i=0;
+  const t=setInterval(()=>{
+    if(i>0){const p=document.getElementById(`kdi${i-1}`);p.classList.remove('running');p.classList.add('done');p.querySelector('.agg-dot').textContent='✓'}
+    if(i>=steps.length){clearInterval(t);kdDoAggregate();setTimeout(()=>kdGoStep(4),500);return}
+    const c=document.getElementById(`kdi${i}`);c.classList.add('running');c.querySelector('.agg-dot').textContent='⟳';i++;
+  },300);
+}
+
+function kdDoAggregate(){
+  const prods={};
+  if(KD.purchase)KD.purchase.forEach(r=>{
+    const code=r['物料编码'];if(!code)return;
+    if(!prods[code])prods[code]={name:r['物料名称']||'',spec:r['规格型号']||'',unit:r['计量单位']||'',pq:0,pa:0,sq:0,sa:0,iq:0,sup:new Set(),cus:new Set()};
+    prods[code].pq+=parseFloat(r['数量'])||0;
+    prods[code].pa+=parseFloat(r['价税合计']||r['金额'])||0;
+    if(r['订货供应商'])prods[code].sup.add(r['订货供应商']);
+  });
+  if(KD.sales)KD.sales.forEach(r=>{
+    const code=r['物料编码'];if(!code)return;
+    if(!prods[code])prods[code]={name:r['物料名称']||'',spec:r['规格型号']||'',unit:r['计量单位']||'',pq:0,pa:0,sq:0,sa:0,iq:0,sup:new Set(),cus:new Set()};
+    prods[code].sq+=parseFloat(r['数量'])||0;
+    prods[code].sa+=parseFloat(r['价税合计']||r['金额'])||0;
+    if(r['订货客户'])prods[code].cus.add(r['订货客户']);
+  });
+  if(KD.inventory)KD.inventory.forEach(r=>{
+    const code=r['物料'];if(!code)return;
+    if(!prods[code])prods[code]={name:r['物料.名称']||'',spec:'',unit:r['计量单位']||'',pq:0,pa:0,sq:0,sa:0,iq:0,sup:new Set(),cus:new Set()};
+    prods[code].iq+=parseFloat(r['可用量']||r['数量'])||0;
+    if(!prods[code].name)prods[code].name=r['物料.名称']||'';
+  });
+  KD.summary=prods;
+}
+
+function kdRenderResult(){
+  if(!KD.summary)return;
+  const t=document.getElementById('kd-rt');
+  let h=`<thead><tr><th rowspan="2">序号</th><th rowspan="2">物料编码</th><th rowspan="2">物料名称</th><th rowspan="2">规格</th><th rowspan="2">单位</th><th colspan="2" class="gp">📦 采购</th><th colspan="2" class="gp">💰 销售</th><th rowspan="2">🏭 库存量</th><th rowspan="2">供应商/客户</th></tr><tr><th>数量</th><th>金额(元)</th><th>数量</th><th>金额(元)</th></tr></thead><tbody>`;
+  let idx=0,T={pq:0,pa:0,sq:0,sa:0,iq:0};
+  Object.entries(KD.summary).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([code,v])=>{
+    idx++;T.pq+=v.pq;T.pa+=v.pa;T.sq+=v.sq;T.sa+=v.sa;T.iq+=v.iq;
+    const partners=[...v.sup].slice(0,1).concat([...v.cus].slice(0,1)).join('、')||'-';
+    h+=`<tr><td>${idx}</td><td>${code}</td><td style="text-align:left;font-weight:600">${v.name}</td><td>${v.spec||'-'}</td><td>${v.unit}</td><td class="nm">${fn(v.pq)}</td><td class="nm">${fn(v.pa)}</td><td class="nm">${fn(v.sq)}</td><td class="nm">${fn(v.sa)}</td><td class="nm">${fn(v.iq)}</td><td style="text-align:left;font-size:11px">${partners}</td></tr>`;
+  });
+  h+=`<tr class="tot"><td colspan="5" style="text-align:center;font-size:13px">合　计</td><td class="nm">${fn(T.pq)}</td><td class="nm">${fn(T.pa)}</td><td class="nm">${fn(T.sq)}</td><td class="nm">${fn(T.sa)}</td><td class="nm">${fn(T.iq)}</td><td></td></tr></tbody>`;
+  t.innerHTML=h;
+}
+
+function kdExport(){
+  if(!KD.summary)return;
+  const wb=XLSX.utils.book_new();
+  const rows=[['统计局台账汇总表（金蝶真实数据）'],['数据来源：金蝶云星空·环球集团','','','报告期：2026年1月-3月','','金额单位：元'],[],
+    ['序号','物料编码','物料名称','规格型号','计量单位','采购数量','采购金额(元)','销售数量','销售金额(元)','期末库存量']];
+  let idx=0,T={pq:0,pa:0,sq:0,sa:0,iq:0};
+  Object.entries(KD.summary).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([code,v])=>{
+    idx++;T.pq+=v.pq;T.pa+=v.pa;T.sq+=v.sq;T.sa+=v.sa;T.iq+=v.iq;
+    rows.push([idx,code,v.name,v.spec||'',v.unit,r2(v.pq),r2(v.pa),r2(v.sq),r2(v.sa),r2(v.iq)]);
+  });
+  rows.push(['合计','','','','',r2(T.pq),r2(T.pa),r2(T.sq),r2(T.sa),r2(T.iq)]);
+  const ws=XLSX.utils.aoa_to_sheet(rows);ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:9}}];
+  ws['!cols']=[{wch:6},{wch:18},{wch:20},{wch:12},{wch:8},{wch:12},{wch:16},{wch:12},{wch:16},{wch:12}];
+  XLSX.utils.book_append_sheet(wb,ws,'台账汇总表');
+  XLSX.writeFile(wb,'金蝶真实数据_台账汇总.xlsx');toast('✅ 台账汇总表已导出');
+}
+
+function kdExportAll(){
+  if(!KD.summary)return;
+  const wb=XLSX.utils.book_new();
+  // 汇总
+  const rows=[['统计局台账汇总表（金蝶真实数据）'],['数据来源：金蝶云星空·环球集团','','','报告期：2026年1月-3月'],[],
+    ['序号','物料编码','物料名称','规格型号','计量单位','采购数量','采购金额(元)','销售数量','销售金额(元)','期末库存量']];
+  let idx=0;
+  Object.entries(KD.summary).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([code,v])=>{
+    idx++;rows.push([idx,code,v.name,v.spec||'',v.unit,r2(v.pq),r2(v.pa),r2(v.sq),r2(v.sa),r2(v.iq)]);
+  });
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'台账汇总表');
+  // 原始数据
+  if(KD.purchaseRaw)XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(KD.purchaseRaw),'采购订单(原始)');
+  if(KD.salesRaw)XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(KD.salesRaw),'销售订单(原始)');
+  if(KD.inventoryRaw)XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(KD.inventoryRaw),'即时库存(原始)');
+  XLSX.writeFile(wb,'金蝶真实数据_全部_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  toast('✅ 全部数据已导出（汇总+原始）');
+}
 
 init();
 </script>
