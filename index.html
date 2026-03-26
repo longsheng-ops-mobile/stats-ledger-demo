@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>统计局台账数据采集与汇总系统</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#06080f;--s1:#0c1120;--s2:#111a2e;--s3:#182040;
+  --b1:#1e2d50;--b2:#2a3f6e;--ba:#3b82f6;
+  --t1:#e8edf5;--t2:#94a3b8;--t3:#5a6a85;
+  --blue:#3b82f6;--cyan:#06b6d4;--green:#10b981;--amber:#f59e0b;--red:#ef4444;
+  --purple:#8b5cf6;--pink:#ec4899;
+  --sap:#2563eb;--kd:#dc2626;--yy:#16a34a;
+  --r:14px;--rs:8px;
+}
+body{font-family:'Noto Sans SC',-apple-system,sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;overflow-x:hidden}
+
+/* ── 动态背景 ── */
+.bg-glow{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.bg-glow .orb{position:absolute;border-radius:50%;filter:blur(80px);opacity:.07;animation:float 20s infinite ease-in-out}
+.bg-glow .orb:nth-child(1){width:600px;height:600px;background:#3b82f6;top:-200px;left:10%;animation-delay:0s}
+.bg-glow .orb:nth-child(2){width:500px;height:500px;background:#8b5cf6;bottom:-150px;right:5%;animation-delay:-7s}
+.bg-glow .orb:nth-child(3){width:400px;height:400px;background:#06b6d4;top:40%;left:50%;animation-delay:-14s}
+@keyframes float{0%,100%{transform:translate(0,0)}25%{transform:translate(30px,-40px)}50%{transform:translate(-20px,30px)}75%{transform:translate(40px,20px)}}
+
+body::before{content:'';position:fixed;inset:0;background:linear-gradient(rgba(59,130,246,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(59,130,246,.02) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0}
+
+.app{position:relative;z-index:1;max-width:1440px;margin:0 auto;padding:16px 24px}
+
+/* ── Header ── */
+header{text-align:center;padding:36px 20px 20px;position:relative}
+.logo-line{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:6px}
+.logo-icon{width:48px;height:48px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 4px 20px rgba(59,130,246,.3)}
+header h1{font-size:26px;font-weight:900;background:linear-gradient(135deg,#60a5fa,#a78bfa,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:1px}
+header .sub{color:var(--t3);font-size:13px;letter-spacing:2px;margin-top:2px}
+
+/* ── 步骤条 ── */
+.steps{display:flex;justify-content:center;gap:4px;margin:28px 0 32px}
+.stp{display:flex;align-items:center;gap:8px;padding:10px 22px;background:var(--s1);border:1px solid var(--b1);cursor:pointer;transition:all .3s;font-size:13px;font-weight:500;position:relative}
+.stp:first-child{border-radius:var(--r) 0 0 var(--r)}
+.stp:last-child{border-radius:0 var(--r) var(--r) 0}
+.stp:not(:last-child){border-right:none}
+.stp:not(:last-child)::after{content:'';position:absolute;right:-1px;top:50%;transform:translateY(-50%);width:0;height:0;border-top:8px solid transparent;border-bottom:8px solid transparent;border-left:8px solid var(--b1);z-index:2}
+.sn{width:26px;height:26px;border-radius:50%;background:var(--s3);color:var(--t3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;transition:all .3s}
+.sl{color:var(--t3);transition:all .3s}
+.stp.on{background:var(--s2);border-color:var(--ba)}.stp.on .sn{background:var(--blue);color:#fff}.stp.on .sl{color:var(--blue)}
+.stp.ok .sn{background:var(--green);color:#fff}.stp.ok .sl{color:var(--green)}
+
+/* ── 面板 ── */
+.pnl{display:none;animation:fadeUp .5s ease}.pnl.vis{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── 卡片 ── */
+.card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:24px;margin-bottom:20px;box-shadow:0 4px 30px rgba(0,0,0,.3)}
+.card-t{font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.card-t .ic{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px}
+
+/* ── 企业卡片网格 ── */
+.co-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+@media(max-width:900px){.co-grid{grid-template-columns:1fr}}
+
+.co-card{border:1px solid var(--b1);border-radius:var(--r);padding:24px;position:relative;overflow:hidden;transition:all .4s;cursor:default}
+.co-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.co-card.sap{border-color:rgba(37,99,235,.3)}.co-card.sap::before{background:linear-gradient(90deg,#2563eb,#60a5fa)}
+.co-card.sap .co-bg{background:radial-gradient(ellipse at top right,rgba(37,99,235,.08),transparent 70%)}
+.co-card.kd{border-color:rgba(220,38,38,.3)}.co-card.kd::before{background:linear-gradient(90deg,#dc2626,#f87171)}
+.co-card.kd .co-bg{background:radial-gradient(ellipse at top right,rgba(220,38,38,.08),transparent 70%)}
+.co-card.yy{border-color:rgba(22,163,74,.3)}.co-card.yy::before{background:linear-gradient(90deg,#16a34a,#4ade80)}
+.co-card.yy .co-bg{background:radial-gradient(ellipse at top right,rgba(22,163,74,.08),transparent 70%)}
+.co-bg{position:absolute;inset:0;pointer-events:none}
+
+.co-head{position:relative;display:flex;align-items:center;gap:14px;margin-bottom:16px}
+.co-logo{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900}
+.sap .co-logo{background:rgba(37,99,235,.15);color:#60a5fa}
+.kd .co-logo{background:rgba(220,38,38,.15);color:#f87171}
+.yy .co-logo{background:rgba(22,163,74,.15);color:#4ade80}
+.co-name{font-size:18px;font-weight:800}
+.co-erp{font-size:12px;color:var(--t3);margin-top:2px}
+
+.co-stats{position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.co-st{background:var(--s2);border-radius:var(--rs);padding:10px}
+.co-st-label{font-size:11px;color:var(--t3);margin-bottom:3px}
+.co-st-val{font-size:16px;font-weight:800}
+
+.co-badge{position:absolute;top:16px;right:16px;padding:3px 12px;border-radius:12px;font-size:11px;font-weight:700;letter-spacing:1px}
+.sap .co-badge{background:rgba(37,99,235,.15);color:#60a5fa}
+.kd .co-badge{background:rgba(220,38,38,.15);color:#f87171}
+.yy .co-badge{background:rgba(22,163,74,.15);color:#4ade80}
+
+/* ── 数据表格 ── */
+.tabs{display:flex;gap:0;border-bottom:2px solid var(--b1);margin-bottom:0;overflow-x:auto}
+.tab{padding:9px 18px;background:0;border:0;color:var(--t3);font-size:12px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s;font-family:inherit;white-space:nowrap}
+.tab:hover{color:var(--t1)}.tab.on{color:var(--blue);border-bottom-color:var(--blue)}
+
+.tw{overflow-x:auto;margin-top:14px;max-height:380px;overflow-y:auto;border:1px solid var(--b1);border-radius:var(--rs)}
+.tw table{width:100%;border-collapse:collapse;font-size:11.5px}
+.tw th{background:var(--s3);color:var(--t2);padding:9px 10px;text-align:center;position:sticky;top:0;z-index:5;font-weight:600;white-space:nowrap;border-bottom:2px solid var(--b1)}
+.tw td{padding:7px 10px;text-align:center;border-bottom:1px solid rgba(30,45,80,.5);white-space:nowrap}
+.tw tr:hover td{background:rgba(59,130,246,.04)}
+.nm{text-align:right!important;font-variant-numeric:tabular-nums}
+
+/* ── 统计卡 ── */
+.st-row{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:22px}
+@media(max-width:800px){.st-row{grid-template-columns:repeat(2,1fr)}}
+.st{background:var(--s1);border:1px solid var(--b1);border-radius:var(--rs);padding:16px;position:relative;overflow:hidden}
+.st::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.st.c1::before{background:var(--blue)}.st.c2::before{background:var(--green)}.st.c3::before{background:var(--amber)}.st.c4::before{background:var(--red)}.st.c5::before{background:var(--purple)}
+.st-l{font-size:11px;color:var(--t3);margin-bottom:4px}.st-v{font-size:22px;font-weight:900;letter-spacing:-1px}
+.st-v.c1{color:#60a5fa}.st-v.c2{color:#34d399}.st-v.c3{color:#fbbf24}.st-v.c4{color:#f87171}.st-v.c5{color:#a78bfa}
+
+/* ── 汇总进度 ── */
+.agg-wrap{text-align:center;padding:50px 20px}
+.agg-steps{display:flex;flex-direction:column;gap:12px;max-width:500px;margin:0 auto;text-align:left}
+.agg-item{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--s2);border-radius:var(--rs);border:1px solid var(--b1);transition:all .4s}
+.agg-item.running{border-color:var(--blue);background:rgba(59,130,246,.06)}
+.agg-item.done{border-color:var(--green);background:rgba(16,185,129,.06)}
+.agg-dot{width:24px;height:24px;border-radius:50%;border:2px solid var(--b1);display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .4s;flex-shrink:0}
+.agg-item.running .agg-dot{border-color:var(--blue);color:var(--blue);animation:pulse 1s infinite}
+.agg-item.done .agg-dot{border-color:var(--green);background:var(--green);color:#fff}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.agg-text{font-size:13px;color:var(--t3);transition:all .3s}
+.agg-item.running .agg-text{color:var(--blue);font-weight:600}
+.agg-item.done .agg-text{color:var(--green)}
+
+/* ── 汇总结果 ── */
+.res-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.res-title{font-size:20px;font-weight:900;background:linear-gradient(135deg,#fbbf24,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.res-sub{color:var(--t3);font-size:13px;margin-top:4px}
+.tags{display:flex;gap:6px;flex-wrap:wrap}
+.tg{padding:4px 12px;border-radius:14px;font-size:11px;font-weight:700}
+.tg-s{background:rgba(37,99,235,.12);color:#60a5fa}
+.tg-k{background:rgba(220,38,38,.12);color:#f87171}
+.tg-y{background:rgba(22,163,74,.12);color:#4ade80}
+
+.rt{width:100%;border-collapse:collapse;font-size:12.5px}
+.rt th{background:linear-gradient(135deg,#131d35,#0f1628);color:#7daee8;padding:11px 12px;text-align:center;font-weight:700;white-space:nowrap;border:1px solid #1e3050}
+.rt th.gp{background:linear-gradient(135deg,#162240,#0f1a30);font-size:13px;color:#93c5fd;letter-spacing:1px}
+.rt td{padding:9px 12px;text-align:center;border:1px solid rgba(30,48,80,.6)}
+.rt tr:nth-child(even) td{background:rgba(59,130,246,.02)}
+.rt tr:hover td{background:rgba(59,130,246,.06)}
+.rt tr.tot td{background:rgba(245,158,11,.08)!important;font-weight:900;color:#fbbf24;border-top:2px solid rgba(245,158,11,.5)}
+.rt .co-cell{text-align:left;font-weight:600}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px}
+.dot-s{background:var(--sap)}.dot-k{background:var(--kd)}.dot-y{background:var(--yy)}
+
+/* ── 按钮 ── */
+.acts{display:flex;justify-content:center;gap:14px;padding:24px 0}
+.btn{padding:11px 28px;border:none;border-radius:var(--rs);font-size:14px;font-weight:700;cursor:pointer;transition:all .3s;font-family:inherit;display:flex;align-items:center;gap:8px}
+.bp{background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;box-shadow:0 4px 20px rgba(59,130,246,.25)}
+.bp:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(59,130,246,.35)}
+.bg{background:linear-gradient(135deg,#10b981,#059669);color:#fff;box-shadow:0 4px 20px rgba(16,185,129,.2)}
+.bg:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(16,185,129,.3)}
+.bo{background:0;border:1px solid var(--b1);color:var(--t2)}.bo:hover{border-color:var(--blue);color:var(--blue)}
+.bam{background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;box-shadow:0 4px 20px rgba(245,158,11,.2)}
+.bam:hover{transform:translateY(-2px)}
+
+/* ── 脉冲指示 ── */
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;animation:livep 2s infinite}
+@keyframes livep{0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,.5)}50%{box-shadow:0 0 0 6px rgba(16,185,129,0)}}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--s2);border:1px solid var(--green);padding:14px 28px;border-radius:var(--r);font-size:14px;font-weight:600;color:var(--green);box-shadow:0 8px 40px rgba(0,0,0,.6);transition:transform .4s ease;z-index:999}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* ── 滚动条 ── */
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:var(--s1)}::-webkit-scrollbar-thumb{background:var(--s3);border-radius:3px}
+
+/* ── 流程箭头图 ── */
+.flow{display:flex;align-items:center;justify-content:center;gap:0;margin:28px 0 10px;flex-wrap:wrap}
+.flow-node{padding:10px 20px;border-radius:var(--rs);font-size:13px;font-weight:700;text-align:center;min-width:100px}
+.flow-arrow{color:var(--t3);font-size:20px;padding:0 6px}
+.fn-sap{background:rgba(37,99,235,.1);border:1px solid rgba(37,99,235,.3);color:#60a5fa}
+.fn-kd{background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.3);color:#f87171}
+.fn-yy{background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.3);color:#4ade80}
+.fn-tool{background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.3);color:#a78bfa}
+.fn-out{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#fbbf24}
+</style>
+</head>
+<body>
+<div class="bg-glow"><div class="orb"></div><div class="orb"></div><div class="orb"></div></div>
+
+<div class="app">
+  <header>
+    <div class="logo-line">
+      <div class="logo-icon">📊</div>
+      <div>
+        <h1>统计局台账数据采集与汇总系统</h1>
+        <div class="sub">ERP DATA COLLECTION & STATISTICAL LEDGER AGGREGATION</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 流程图 -->
+  <div class="flow">
+    <div class="flow-node fn-sap">🏭 海尔集团<br><small>SAP ERP</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node fn-kd">🏭 海信集团<br><small>金蝶云星空</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node fn-yy">🏭 青岛啤酒<br><small>用友U8+</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node fn-tool">⚙️ 数据采集<br><small>标准化处理</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node fn-out">📋 统计局台账<br><small>汇总报送</small></div>
+  </div>
+
+  <!-- 步骤条 -->
+  <div class="steps">
+    <div class="stp on" onclick="go(1)"><span class="sn">1</span><span class="sl">企业数据</span></div>
+    <div class="stp" onclick="go(2)"><span class="sn">2</span><span class="sl">数据预览</span></div>
+    <div class="stp" onclick="go(3)"><span class="sn">3</span><span class="sl">汇总处理</span></div>
+    <div class="stp" onclick="go(4)"><span class="sn">4</span><span class="sl">台账报送</span></div>
+  </div>
+
+  <!-- ====== Step 1 ====== -->
+  <div class="pnl vis" id="p1">
+    <div class="card">
+      <div class="card-t"><div class="ic" style="background:rgba(59,130,246,.12)">🏭</div>企业ERP数据采集 <span class="live-dot"></span></div>
+      <p style="color:var(--t3);font-size:13px;margin-bottom:18px">系统已对接以下3家企业的ERP系统，自动采集2026年3月进销存数据：</p>
+      <div class="co-grid" id="co-grid"></div>
+    </div>
+    <div class="acts"><button class="btn bp" onclick="go(2)">查看采集数据 →</button></div>
+  </div>
+
+  <!-- ====== Step 2 ====== -->
+  <div class="pnl" id="p2">
+    <div class="st-row" id="st-row"></div>
+    <div class="card">
+      <div class="card-t"><div class="ic" style="background:rgba(59,130,246,.12)">🔍</div>ERP原始数据预览</div>
+      <div class="tabs" id="tabs"></div>
+      <div id="pv-area"></div>
+    </div>
+    <div class="acts">
+      <button class="btn bo" onclick="go(1)">← 返回</button>
+      <button class="btn bp" onclick="go(3)">开始汇总处理 →</button>
+    </div>
+  </div>
+
+  <!-- ====== Step 3 ====== -->
+  <div class="pnl" id="p3">
+    <div class="card">
+      <div class="agg-wrap">
+        <div style="font-size:18px;font-weight:800;margin-bottom:24px;">⚙️ 按统计局台账标准汇总中...</div>
+        <div class="agg-steps" id="agg-steps"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== Step 4 ====== -->
+  <div class="pnl" id="p4">
+    <div class="card" style="padding:28px">
+      <div class="res-head">
+        <div>
+          <div class="res-title">📋 统计局台账汇总表</div>
+          <div class="res-sub">工业企业主要产品产量、销售与库存台账 · 报告期：2026年3月 · 金额单位：万元</div>
+        </div>
+        <div class="tags">
+          <span class="tg tg-s">● 海尔集团 · SAP</span>
+          <span class="tg tg-k">● 海信集团 · 金蝶</span>
+          <span class="tg tg-y">● 青岛啤酒 · 用友</span>
+        </div>
+      </div>
+      <div class="tw" style="max-height:520px">
+        <table class="rt" id="rt"></table>
+      </div>
+    </div>
+    <div class="acts">
+      <button class="btn bo" onclick="go(2)">← 返回预览</button>
+      <button class="btn bam" onclick="doExport()">📥 导出台账Excel</button>
+      <button class="btn bg" onclick="doExportAll()">📦 导出全部（汇总+原始数据）</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// 内置示例数据
+// ============================================================
+const RNG = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
+const RNF = (a,b) => +(Math.random()*(b-a)+a).toFixed(2);
+
+const COMPANIES = {
+  haier: {
+    name:'海尔集团', erp:'SAP', erpFull:'SAP ERP (MM/SD模块)', cls:'sap', icon:'H',
+    products: [
+      {code:'A001',name:'家用空调',unit:'台',cost:5800,price:6500,margin:.78},
+      {code:'A002',name:'家用冰箱',unit:'台',cost:3200,price:3800,margin:.75},
+      {code:'A003',name:'家用洗衣机',unit:'台',cost:2800,price:3500,margin:.72},
+      {code:'A004',name:'热水器',unit:'台',cost:1500,price:2200,margin:.68},
+      {code:'A005',name:'厨房电器',unit:'台',cost:800,price:1200,margin:.70},
+    ],
+    suppliers:['日本电装(压缩机)','三菱电机(电机)','京东方(面板)','美芝(压缩机)','瑞萨电子(芯片)'],
+    customers:['京东商城','苏宁易购','天猫电器城','国美电器','五星电器','红星美凯龙'],
+    purchaseN:20, salesN:18,
+  },
+  hisense: {
+    name:'海信集团', erp:'金蝶', erpFull:'金蝶云星空 (供应链模块)', cls:'kd', icon:'信',
+    products: [
+      {code:'A004',name:'热水器',unit:'台',cost:1500,price:2200,margin:.68},
+      {code:'A005',name:'厨房电器',unit:'台',cost:800,price:1200,margin:.70},
+      {code:'A006',name:'电视机',unit:'台',cost:4500,price:5500,margin:.76},
+      {code:'A007',name:'冷柜',unit:'台',cost:2000,price:2600,margin:.74},
+      {code:'A008',name:'智能音箱',unit:'台',cost:300,price:500,margin:.65},
+    ],
+    suppliers:['LG显示(面板)','联发科(芯片)','三星SDI(电池)','台达电子(电源)','富士康(代工)'],
+    customers:['京东商城','苏宁易购','天猫电器城','国美电器','拼多多','抖音商城'],
+    purchaseN:16, salesN:14,
+  },
+  tsingtao: {
+    name:'青岛啤酒', erp:'用友', erpFull:'用友U8+ (供应链模块)', cls:'yy', icon:'青',
+    products: [
+      {code:'B001',name:'青岛啤酒经典',unit:'千升',cost:3500,price:4200,margin:.70},
+      {code:'B002',name:'青岛啤酒纯生',unit:'千升',cost:4800,price:5600,margin:.72},
+      {code:'B003',name:'崂山啤酒',unit:'千升',cost:2200,price:2800,margin:.68},
+      {code:'B004',name:'汉斯啤酒',unit:'千升',cost:1800,price:2400,margin:.66},
+    ],
+    suppliers:['中粮麦业(麦芽)','巴斯夫(酒花)','中粮糖业(白糖)','珠海中富(瓶子)','利乐(包装)'],
+    customers:['华润万家','沃尔玛','永辉超市','大润发','盒马鲜生','山姆会员店'],
+    purchaseN:15, salesN:12,
+  }
+};
+
+// 生成具体数据
+function genData() {
+  Object.values(COMPANIES).forEach(co => {
+    co.purchase = []; co.sales = []; co.inventory = [];
+    // 采购
+    for(let i=0;i<co.purchaseN;i++){
+      const p = co.products[RNG(0,co.products.length-1)];
+      const qty = RNG(100,2000);
+      const amt = +(qty*p.cost*RNF(.88,1.12)).toFixed(2);
+      co.purchase.push({
+        no:i+1, code:p.code, name:p.name, unit:p.unit,
+        supplier:co.suppliers[RNG(0,co.suppliers.length-1)],
+        docNo: co.erp==='SAP'?`45${RNG(10000000,99999999)}`:co.erp==='金蝶'?`CGRK-2026${RNG(1000,9999)}`:`RK-2026${RNG(10000,99999)}`,
+        date:`2026-03-${String(RNG(1,26)).padStart(2,'0')}`,
+        qty, price:+(amt/qty).toFixed(2), amount:amt
+      });
+    }
+    // 销售
+    for(let i=0;i<co.salesN;i++){
+      const p = co.products[RNG(0,co.products.length-1)];
+      const qty = RNG(80,1500);
+      const price = +(p.price*RNF(.92,1.15)).toFixed(2);
+      const amt = +(qty*price).toFixed(2);
+      const cost = +(amt*p.margin).toFixed(2);
+      co.sales.push({
+        no:i+1, code:p.code, name:p.name, unit:p.unit,
+        customer:co.customers[RNG(0,co.customers.length-1)],
+        docNo: co.erp==='SAP'?`80${RNG(10000000,99999999)}`:co.erp==='金蝶'?`XSCK-2026${RNG(1000,9999)}`:`CK-2026${RNG(10000,99999)}`,
+        date:`2026-03-${String(RNG(1,26)).padStart(2,'0')}`,
+        qty, price, amount:amt, cost
+      });
+    }
+    // 库存
+    co.products.forEach((p,i) => {
+      const qty = RNG(2000,15000);
+      co.inventory.push({
+        no:i+1, code:p.code, name:p.name, unit:p.unit,
+        warehouse: co.erp==='SAP'?'WH01':'成品仓',
+        qty, amount:+(qty*p.cost*.93).toFixed(2)
+      });
+    });
+  });
+}
+genData();
+
+// ============================================================
+// 步骤管理
+// ============================================================
+let curStep=1, summaryRows=null;
+
+function go(n){
+  if(n===3){runAgg();return}
+  curStep=n;
+  document.querySelectorAll('.pnl').forEach(p=>p.classList.remove('vis'));
+  document.getElementById(`p${n}`).classList.add('vis');
+  document.querySelectorAll('.stp').forEach((s,i)=>{
+    s.classList.remove('on','ok');
+    if(i+1<n)s.classList.add('ok');
+    if(i+1===n)s.classList.add('on');
+  });
+  if(n===1)renderStep1();
+  if(n===2)renderStep2();
+  if(n===4)renderStep4();
+}
+
+// ============================================================
+// Step 1: 企业数据概览
+// ============================================================
+function renderStep1(){
+  const g=document.getElementById('co-grid');
+  g.innerHTML='';
+  Object.entries(COMPANIES).forEach(([k,co])=>{
+    const pAmt=co.purchase.reduce((s,r)=>s+r.amount,0);
+    const sAmt=co.sales.reduce((s,r)=>s+r.amount,0);
+    const iAmt=co.inventory.reduce((s,r)=>s+r.amount,0);
+    g.innerHTML+=`
+    <div class="co-card ${co.cls}">
+      <div class="co-bg"></div>
+      <div class="co-badge">${co.erp}</div>
+      <div class="co-head">
+        <div class="co-logo">${co.icon}</div>
+        <div><div class="co-name">${co.name}</div><div class="co-erp">${co.erpFull}</div></div>
+      </div>
+      <div class="co-stats">
+        <div class="co-st"><div class="co-st-label">采购入库</div><div class="co-st-val" style="color:#60a5fa">${co.purchase.length}笔</div></div>
+        <div class="co-st"><div class="co-st-label">销售出库</div><div class="co-st-val" style="color:#f87171">${co.sales.length}笔</div></div>
+        <div class="co-st"><div class="co-st-label">库存品类</div><div class="co-st-val" style="color:#4ade80">${co.inventory.length}种</div></div>
+      </div>
+    </div>`;
+  });
+}
+renderStep1();
+
+// ============================================================
+// Step 2: 数据预览
+// ============================================================
+function renderStep2(){
+  // 统计
+  let totalP=0,totalS=0,totalI=0,totalRec=0,totalProd=new Set();
+  Object.values(COMPANIES).forEach(co=>{
+    co.purchase.forEach(r=>{totalP+=r.amount;totalRec++;totalProd.add(r.code)});
+    co.sales.forEach(r=>{totalS+=r.amount;totalRec++;totalProd.add(r.code)});
+    co.inventory.forEach(r=>{totalI+=r.amount;totalProd.add(r.code)});
+  });
+  document.getElementById('st-row').innerHTML=`
+    <div class="st c1"><div class="st-l">导入企业</div><div class="st-v c1">3家</div></div>
+    <div class="st c5"><div class="st-l">产品品类</div><div class="st-v c5">${totalProd.size}种</div></div>
+    <div class="st c2"><div class="st-l">数据总量</div><div class="st-v c2">${totalRec}条</div></div>
+    <div class="st c3"><div class="st-l">采购总额</div><div class="st-v c3">${fw(totalP)}</div></div>
+    <div class="st c4"><div class="st-l">销售总额</div><div class="st-v c4">${fw(totalS)}</div></div>
+  `;
+
+  // Tabs
+  const tabs=document.getElementById('tabs');
+  const area=document.getElementById('pv-area');
+  tabs.innerHTML='';area.innerHTML='';
+  let first=true;
+
+  const sheets=[];
+  Object.entries(COMPANIES).forEach(([k,co])=>{
+    sheets.push({id:`${k}-purchase`,label:`${co.name}·采购入库`,heads:['序号','产品代码','产品名称','供应商','单号','日期','数量','单位','金额(元)'],
+      rows:co.purchase.map(r=>[r.no,r.code,r.name,r.supplier,r.docNo,r.date,r.qty,r.unit,r.amount])});
+    sheets.push({id:`${k}-sales`,label:`${co.name}·销售出库`,heads:['序号','产品代码','产品名称','客户','单号','日期','数量','单位','金额(元)','成本(元)'],
+      rows:co.sales.map(r=>[r.no,r.code,r.name,r.customer,r.docNo,r.date,r.qty,r.unit,r.amount,r.cost])});
+    sheets.push({id:`${k}-inv`,label:`${co.name}·期末库存`,heads:['序号','产品代码','产品名称','仓库','数量','单位','金额(元)'],
+      rows:co.inventory.map(r=>[r.no,r.code,r.name,r.warehouse,r.qty,r.unit,r.amount])});
+  });
+
+  sheets.forEach(sh=>{
+    const t=document.createElement('button');
+    t.className='tab'+(first?' on':'');
+    t.textContent=sh.label;
+    t.onclick=()=>{
+      tabs.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));t.classList.add('on');
+      area.querySelectorAll('.tw').forEach(x=>x.style.display='none');
+      document.getElementById('tw-'+sh.id).style.display='block';
+    };
+    tabs.appendChild(t);
+
+    let html='<table><thead><tr>';
+    sh.heads.forEach(h=>{html+=`<th>${h}</th>`});
+    html+='</tr></thead><tbody>';
+    sh.rows.forEach(r=>{
+      html+='<tr>';
+      r.forEach(c=>{
+        const isN=typeof c==='number';
+        html+=`<td class="${isN?'nm':''}">${isN?fn(c):c}</td>`;
+      });
+      html+='</tr>';
+    });
+    html+='</tbody></table>';
+
+    const w=document.createElement('div');
+    w.className='tw';w.id='tw-'+sh.id;
+    w.style.display=first?'block':'none';
+    w.innerHTML=html;
+    area.appendChild(w);
+    first=false;
+  });
+}
+
+// ============================================================
+// Step 3: 汇总动画
+// ============================================================
+function runAgg(){
+  curStep=3;
+  document.querySelectorAll('.pnl').forEach(p=>p.classList.remove('vis'));
+  document.getElementById('p3').classList.add('vis');
+  document.querySelectorAll('.stp').forEach((s,i)=>{s.classList.remove('on','ok');if(i<2)s.classList.add('ok');if(i===2)s.classList.add('on')});
+
+  const steps=[
+    '读取海尔集团SAP系统数据 (MM/SD模块)...',
+    '标准化SAP字段映射 → 统计局台账字段...',
+    '读取海信集团金蝶云星空数据...',
+    '标准化金蝶字段映射 → 统计局台账字段...',
+    '读取青岛啤酒用友U8+数据...',
+    '标准化用友字段映射 → 统计局台账字段...',
+    '合并三家企业数据，按产品代码归集...',
+    '计算采购汇总、销售汇总、库存汇总...',
+    '金额单位换算 (元 → 万元)...',
+    '生成统计局台账标准格式汇总表 ✓',
+  ];
+
+  const el=document.getElementById('agg-steps');
+  el.innerHTML=steps.map((s,i)=>`<div class="agg-item" id="ai${i}"><div class="agg-dot"></div><div class="agg-text">${s}</div></div>`).join('');
+
+  let i=0;
+  const timer=setInterval(()=>{
+    if(i>0){const prev=document.getElementById(`ai${i-1}`);prev.classList.remove('running');prev.classList.add('done');prev.querySelector('.agg-dot').textContent='✓'}
+    if(i>=steps.length){clearInterval(timer);doAggregate();setTimeout(()=>go(4),600);return}
+    const cur=document.getElementById(`ai${i}`);cur.classList.add('running');cur.querySelector('.agg-dot').textContent='⟳';
+    i++;
+  },350);
+}
+
+function doAggregate(){
+  const prods={};
+  Object.entries(COMPANIES).forEach(([ck,co])=>{
+    co.purchase.forEach(r=>{
+      if(!prods[r.code])prods[r.code]={name:r.name,unit:r.unit,companies:{}};
+      if(!prods[r.code].companies[ck])prods[r.code].companies[ck]={pq:0,pa:0,sq:0,sa:0,sc:0,iq:0,ia:0};
+      prods[r.code].companies[ck].pq+=r.qty;prods[r.code].companies[ck].pa+=r.amount;
+    });
+    co.sales.forEach(r=>{
+      if(!prods[r.code])prods[r.code]={name:r.name,unit:r.unit,companies:{}};
+      if(!prods[r.code].companies[ck])prods[r.code].companies[ck]={pq:0,pa:0,sq:0,sa:0,sc:0,iq:0,ia:0};
+      prods[r.code].companies[ck].sq+=r.qty;prods[r.code].companies[ck].sa+=r.amount;prods[r.code].companies[ck].sc+=r.cost;
+    });
+    co.inventory.forEach(r=>{
+      if(!prods[r.code])prods[r.code]={name:r.name,unit:r.unit,companies:{}};
+      if(!prods[r.code].companies[ck])prods[r.code].companies[ck]={pq:0,pa:0,sq:0,sa:0,sc:0,iq:0,ia:0};
+      prods[r.code].companies[ck].iq+=r.qty;prods[r.code].companies[ck].ia+=r.amount;
+    });
+  });
+  summaryRows=prods;
+}
+
+// ============================================================
+// Step 4: 汇总结果
+// ============================================================
+function renderStep4(){
+  if(!summaryRows)return;
+  const t=document.getElementById('rt');
+  let h=`<thead>
+    <tr><th rowspan="2" style="width:40px">序号</th><th rowspan="2">产品代码</th><th rowspan="2">产品名称</th>
+    <th rowspan="2">企业名称</th><th rowspan="2">ERP系统</th><th rowspan="2">计量单位</th>
+    <th colspan="2" class="gp">📦 采购入库</th><th colspan="3" class="gp">💰 销售出库</th><th colspan="2" class="gp">🏭 期末库存</th></tr>
+    <tr><th>数量</th><th>金额(万元)</th><th>数量</th><th>金额(万元)</th><th>成本(万元)</th><th>数量</th><th>金额(万元)</th></tr>
+  </thead><tbody>`;
+
+  let idx=0, T={pq:0,pa:0,sq:0,sa:0,sc:0,iq:0,ia:0};
+  Object.entries(summaryRows).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([code,prod])=>{
+    Object.entries(prod.companies).forEach(([ck,v])=>{
+      idx++;const co=COMPANIES[ck];
+      const dc=co.cls==='sap'?'dot-s':co.cls==='kd'?'dot-k':'dot-y';
+      const tc=co.cls==='sap'?'tg-s':co.cls==='kd'?'tg-k':'tg-y';
+      T.pq+=v.pq;T.pa+=v.pa;T.sq+=v.sq;T.sa+=v.sa;T.sc+=v.sc;T.iq+=v.iq;T.ia+=v.ia;
+      h+=`<tr>
+        <td>${idx}</td><td>${code}</td><td class="co-cell">${prod.name}</td>
+        <td><span class="dot ${dc}"></span>${co.name}</td>
+        <td><span class="tg ${tc}">${co.erp}</span></td>
+        <td>${prod.unit}</td>
+        <td class="nm">${fi(v.pq)}</td><td class="nm">${fw2(v.pa)}</td>
+        <td class="nm">${fi(v.sq)}</td><td class="nm">${fw2(v.sa)}</td><td class="nm">${fw2(v.sc)}</td>
+        <td class="nm">${fi(v.iq)}</td><td class="nm">${fw2(v.ia)}</td>
+      </tr>`;
+    });
+  });
+
+  h+=`<tr class="tot">
+    <td colspan="6" style="text-align:center;font-size:14px">合　　计</td>
+    <td class="nm">${fi(T.pq)}</td><td class="nm">${fw2(T.pa)}</td>
+    <td class="nm">${fi(T.sq)}</td><td class="nm">${fw2(T.sa)}</td><td class="nm">${fw2(T.sc)}</td>
+    <td class="nm">${fi(T.iq)}</td><td class="nm">${fw2(T.ia)}</td>
+  </tr></tbody>`;
+  t.innerHTML=h;
+}
+
+// ============================================================
+// 导出Excel
+// ============================================================
+function doExport(){
+  if(!summaryRows)return;
+  const wb=XLSX.utils.book_new();
+  const rows=[
+    ['统计局台账汇总表 — 工业企业主要产品产量、销售与库存'],
+    ['编制单位：统计局','','','报告期：2026年3月','','金额单位：万元'],
+    [],
+    ['序号','产品代码','产品名称','企业名称','ERP系统','计量单位','采购入库数量','采购入库金额(万元)','销售数量','销售金额(万元)','销售成本(万元)','期末库存数量','期末库存金额(万元)']
+  ];
+  let idx=0,T={pq:0,pa:0,sq:0,sa:0,sc:0,iq:0,ia:0};
+  Object.entries(summaryRows).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([code,prod])=>{
+    Object.entries(prod.companies).forEach(([ck,v])=>{
+      idx++;const co=COMPANIES[ck];
+      T.pq+=v.pq;T.pa+=v.pa;T.sq+=v.sq;T.sa+=v.sa;T.sc+=v.sc;T.iq+=v.iq;T.ia+=v.ia;
+      rows.push([idx,code,prod.name,co.name,co.erp,prod.unit,
+        Math.round(v.pq),r2(v.pa/1e4),Math.round(v.sq),r2(v.sa/1e4),r2(v.sc/1e4),Math.round(v.iq),r2(v.ia/1e4)]);
+    });
+  });
+  rows.push(['合计','','','','','',Math.round(T.pq),r2(T.pa/1e4),Math.round(T.sq),r2(T.sa/1e4),r2(T.sc/1e4),Math.round(T.iq),r2(T.ia/1e4)]);
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:12}}];
+  ws['!cols']=[{wch:6},{wch:10},{wch:16},{wch:14},{wch:10},{wch:8},{wch:14},{wch:16},{wch:12},{wch:16},{wch:16},{wch:14},{wch:16}];
+  XLSX.utils.book_append_sheet(wb,ws,'台账汇总表');
+  XLSX.writeFile(wb,`统计局台账汇总表_202603.xlsx`);
+  toast('✅ 台账汇总表已导出！');
+}
+
+function doExportAll(){
+  if(!summaryRows)return;
+  const wb=XLSX.utils.book_new();
+
+  // 汇总表
+  const rows=[['统计局台账汇总表 — 工业企业主要产品产量、销售与库存'],['编制单位：统计局','','','报告期：2026年3月','','金额单位：万元'],[],
+    ['序号','产品代码','产品名称','企业名称','ERP系统','计量单位','采购入库数量','采购入库金额(万元)','销售数量','销售金额(万元)','销售成本(万元)','期末库存数量','期末库存金额(万元)']];
+  let idx=0,T={pq:0,pa:0,sq:0,sa:0,sc:0,iq:0,ia:0};
+  Object.entries(summaryRows).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([code,prod])=>{
+    Object.entries(prod.companies).forEach(([ck,v])=>{
+      idx++;const co=COMPANIES[ck];T.pq+=v.pq;T.pa+=v.pa;T.sq+=v.sq;T.sa+=v.sa;T.sc+=v.sc;T.iq+=v.iq;T.ia+=v.ia;
+      rows.push([idx,code,prod.name,co.name,co.erp,prod.unit,Math.round(v.pq),r2(v.pa/1e4),Math.round(v.sq),r2(v.sa/1e4),r2(v.sc/1e4),Math.round(v.iq),r2(v.ia/1e4)]);
+    });
+  });
+  rows.push(['合计','','','','','',Math.round(T.pq),r2(T.pa/1e4),Math.round(T.sq),r2(T.sa/1e4),r2(T.sc/1e4),Math.round(T.iq),r2(T.ia/1e4)]);
+  const ws0=XLSX.utils.aoa_to_sheet(rows);
+  ws0['!merges']=[{s:{r:0,c:0},e:{r:0,c:12}}];
+  ws0['!cols']=[{wch:6},{wch:10},{wch:16},{wch:14},{wch:10},{wch:8},{wch:14},{wch:16},{wch:12},{wch:16},{wch:16},{wch:14},{wch:16}];
+  XLSX.utils.book_append_sheet(wb,ws0,'台账汇总表');
+
+  // 各企业原始数据
+  Object.entries(COMPANIES).forEach(([k,co])=>{
+    // 采购
+    const ph=[['序号','产品代码','产品名称','供应商','单号','日期','数量','单位','单价(元)','金额(元)']];
+    co.purchase.forEach(r=>ph.push([r.no,r.code,r.name,r.supplier,r.docNo,r.date,r.qty,r.unit,r.price,r.amount]));
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ph),`${co.name}-采购入库`);
+    // 销售
+    const sh2=[['序号','产品代码','产品名称','客户','单号','日期','数量','单位','单价(元)','金额(元)','成本(元)']];
+    co.sales.forEach(r=>sh2.push([r.no,r.code,r.name,r.customer,r.docNo,r.date,r.qty,r.unit,r.price,r.amount,r.cost]));
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(sh2),`${co.name}-销售出库`);
+    // 库存
+    const ih=[['序号','产品代码','产品名称','仓库','数量','单位','金额(元)']];
+    co.inventory.forEach(r=>ih.push([r.no,r.code,r.name,r.warehouse,r.qty,r.unit,r.amount]));
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ih),`${co.name}-期末库存`);
+  });
+
+  XLSX.writeFile(wb,`统计局台账_全部数据_202603.xlsx`);
+  toast('✅ 全部数据已导出！含1张汇总表 + 9张原始数据');
+}
+
+// ============================================================
+// 工具
+// ============================================================
+function fn(n){return typeof n==='number'?n.toLocaleString('zh-CN',{maximumFractionDigits:2}):n}
+function fi(n){return Math.round(n).toLocaleString('zh-CN')}
+function fw(n){return (n/1e4).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2})+'万'}
+function fw2(n){return (n/1e4).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function r2(n){return Math.round(n*100)/100}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000)}
+</script>
+</body>
+</html>
